@@ -15,6 +15,7 @@ pub struct HTMLTableDataCellElement {
     htmltablecellelement: HTMLTableCellElement,
 }
 
+
 impl HTMLTableDataCellElement {
     fn new_inherited(local_name: LocalName,
                      prefix: Option<Prefix>,

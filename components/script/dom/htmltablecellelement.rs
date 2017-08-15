@@ -11,7 +11,11 @@ use dom::bindings::str::DOMString;
 use dom::document::Document;
 use dom::element::{Element, RawLayoutElementHelpers};
 use dom::htmlelement::HTMLElement;
+use dom::htmltableelement::HTMLTableElement;
+use dom::htmltableelement::HTMLTableElementLayoutHelpers;
 use dom::htmltablerowelement::HTMLTableRowElement;
+use dom::htmltablesectionelement::HTMLTableSectionElement;
+use dom::node::LayoutNodeHelpers;
 use dom::node::Node;
 use dom::virtualmethods::VirtualMethods;
 use dom_struct::dom_struct;
@@ -85,6 +89,59 @@ pub trait HTMLTableCellElementLayoutHelpers {
     fn get_colspan(&self) -> Option<u32>;
     fn get_rowspan(&self) -> Option<u32>;
     fn get_width(&self) -> LengthOrPercentageOrAuto;
+    fn get_inherited_cellpadding(&self) -> Option<u32>;
+}
+
+
+fn get_inherited_cellpadding_table(node: LayoutJS<Node>) -> Option<u32>
+{
+    if let Some(table) = node.downcast::<HTMLTableElement>() {
+        table.get_legacy_cellpadding()
+    }
+    else
+    {
+        None
+    }
+}
+
+#[allow(unsafe_code)]
+fn get_inherited_cellpadding_tbody_or_table(node: LayoutJS<Node>) -> Option<u32>
+{
+    if let Some(row) = node.downcast::<HTMLTableSectionElement>() {
+        unsafe {
+            if let Some(parentnode) = row.upcast::<Node>().parent_node_ref() {
+                get_inherited_cellpadding_table(parentnode)
+            }
+            else
+            {
+                None
+            }
+        }
+    }
+    else
+    {
+        get_inherited_cellpadding_table(node)
+    }
+}
+
+#[allow(unsafe_code)]
+fn get_inherited_cellpadding_row_or_table(node: LayoutJS<Node>) -> Option<u32>
+{
+    if let Some(row) = node.downcast::<HTMLTableRowElement>() {
+        unsafe {
+            if let Some(parentnode) = row.upcast::<Node>().parent_node_ref() {
+                get_inherited_cellpadding_tbody_or_table(parentnode)
+            }
+            else
+            {
+                None
+            }
+        }
+    }
+    else
+    {
+        get_inherited_cellpadding_tbody_or_table(node)
+    }
 }
 
 #[allow(unsafe_code)]
@@ -121,6 +178,22 @@ impl HTMLTableCellElementLayoutHelpers for LayoutJS<HTMLTableCellElement> {
                 .map(AttrValue::as_dimension)
                 .cloned()
                 .unwrap_or(LengthOrPercentageOrAuto::Auto)
+        }
+    }
+
+    fn get_inherited_cellpadding(&self) -> Option<u32>
+    {
+        let cellnode = self.upcast::<Node>();
+        unsafe {
+            if let Some(parentnode) = cellnode.parent_node_ref()
+            {
+                get_inherited_cellpadding_row_or_table(parentnode)
+            }
+            else
+            {
+                println!("get_inherited_cellpadding None");
+                None
+            }
         }
     }
 }
